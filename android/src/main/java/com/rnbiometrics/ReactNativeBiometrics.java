@@ -56,13 +56,12 @@ public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
                 BiometricManager biometricManager = BiometricManager.from(reactApplicationContext);
                 int canAuthenticate = biometricManager.canAuthenticate(getAllowedAuthenticators(allowDeviceCredentials));
 
+                WritableMap resultMap = new WritableNativeMap();
+
                 if (canAuthenticate == BiometricManager.BIOMETRIC_SUCCESS) {
-                    WritableMap resultMap = new WritableNativeMap();
                     resultMap.putBoolean("available", true);
                     resultMap.putString("biometryType", "Biometrics");
-                    promise.resolve(resultMap);
                 } else {
-                    WritableMap resultMap = new WritableNativeMap();
                     resultMap.putBoolean("available", false);
 
                     switch (canAuthenticate) {
@@ -76,9 +75,9 @@ public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
                             resultMap.putString("error", "BIOMETRIC_ERROR_NONE_ENROLLED");
                             break;
                     }
-
-                    promise.resolve(resultMap);
                 }
+
+                promise.resolve(resultMap);
             } else {
                 WritableMap resultMap = new WritableNativeMap();
                 resultMap.putBoolean("available", false);
@@ -101,6 +100,7 @@ public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
                         .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
                         .setAlgorithmParameterSpec(new RSAKeyGenParameterSpec(2048, RSAKeyGenParameterSpec.F4))
                         .setUserAuthenticationRequired(true)
+                        .setUserAuthenticationValidityDurationSeconds(-1)
                         .build();
                 keyPairGenerator.initialize(keyGenParameterSpec);
 
@@ -203,34 +203,6 @@ public class ReactNativeBiometrics extends ReactContextBaseJavaModule {
 
     private boolean isCurrentSDK29OrEarlier() {
         return Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q;
-    }
-
-    @ReactMethod
-    public void simplePrompt(final ReadableMap params, final Promise promise) {
-        if (isCurrentSDKMarshmallowOrLater()) {
-            UiThreadUtil.runOnUiThread(
-                    new Runnable() {
-                        @Override
-                        public void run() {
-                            try {
-                                String promptMessage = params.getString("promptMessage");
-                                String cancelButtonText = params.getString("cancelButtonText");
-                                boolean allowDeviceCredentials = params.getBoolean("allowDeviceCredentials");
-
-                                AuthenticationCallback authCallback = new SimplePromptCallback(promise);
-                                FragmentActivity fragmentActivity = (FragmentActivity) getCurrentActivity();
-                                Executor executor = Executors.newSingleThreadExecutor();
-                                BiometricPrompt biometricPrompt = new BiometricPrompt(fragmentActivity, executor, authCallback);
-
-                                biometricPrompt.authenticate(getPromptInfo(promptMessage, cancelButtonText, allowDeviceCredentials));
-                            } catch (Exception e) {
-                                promise.reject("Error displaying local biometric prompt: " + e.getMessage(), "Error displaying local biometric prompt: " + e.getMessage());
-                            }
-                        }
-                    });
-        } else {
-            promise.reject("Cannot display biometric prompt on android versions below 6.0", "Cannot display biometric prompt on android versions below 6.0");
-        }
     }
 
     @ReactMethod
